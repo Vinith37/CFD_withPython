@@ -4,59 +4,66 @@ import mplcursors
 
 # ========== USER INPUTS (CHANGE ONLY THESE) ==========
 
-fut_lot     = 1325      # 1. Future lot size
-fut_price   = 630   # 2. Future price
-ce_lot      = 1250      # 3. CE lot size
-ce_premium  = 7    # 4. CE Premium price
-ce_strike   = 620   # CE Strike price
+fut_lot     = 1325      # Futures lot size
+fut_price   = 630     # Futures entry price
+ce_lot      = 1250      # CE lot size
+ce_premium  = 8      # CE premium (per unit)
+ce_strike   = 620     # CE strike price
 
 # ========== SPOT PRICE RANGE AT EXPIRY ==========
 
-S_T = np.linspace(fut_price * 0.8, fut_price * 1.2, 200)
+S_T = np.linspace(fut_price * 0.8, fut_price * 1.2, 400)
 
 # ========== P&L CALCULATIONS ==========
 
-# Long Futures P&L
 futures_pnl = (S_T - fut_price) * fut_lot
+call_pnl    = (ce_premium * ce_lot) - np.maximum(S_T - ce_strike, 0) * ce_lot
+total_pnl   = futures_pnl + call_pnl   # single consolidated line
 
-# Short Call (CE) P&L
-call_pnl = (ce_premium * ce_lot) - np.maximum(S_T - ce_strike, 0) * ce_lot
+# ========== BREAKEVEN (NUMERICAL) ==========
 
-# Total Covered Call P&L
-total_pnl = futures_pnl + call_pnl
-
-# ========== BREAKEVEN CALCULATION ==========
-
-# Breakeven = Futures Price - Premium Received
-breakeven = fut_price - ce_premium
+idx_be   = np.argmin(np.abs(total_pnl))
+breakeven = S_T[idx_be]
+be_pnl    = total_pnl[idx_be]
+print(f"Approx breakeven spot: {breakeven:.2f}, P&L ≈ {be_pnl:.2f}")
 
 # ========== PLOTTING ==========
 
-plt.figure()
-plt.axhline(0, linestyle="--")
+fig, ax = plt.subplots(figsize=(8, 6))
 
-line1, = plt.plot(S_T, futures_pnl, label="Long Futures P&L")
-line2, = plt.plot(S_T, call_pnl, label="Short CE P&L")
-line3, = plt.plot(S_T, total_pnl, linewidth=2, label="Covered Call Total P&L")
+ax.axhline(0, linestyle="--")              # zero P&L line
+line, = ax.plot(S_T, total_pnl, linewidth=2, label="Covered Call Total P&L")
 
-# ---- Breakeven Vertical Line ----
-plt.axvline(breakeven, linestyle="--", linewidth=2)
-plt.text(breakeven, 0, f"  Breakeven = {breakeven:.2f}", rotation=90, verticalalignment="bottom")
+# draw breakeven vertical line
+ax.axvline(breakeven, linestyle="--")
 
-plt.xlabel("Spot Price at Expiry")
-plt.ylabel("Profit / Loss")
-plt.title("Covered Call Payoff (With Breakeven)")
-plt.legend()
-plt.grid(True)
+# get current y-limits and place text near the bottom
+ymin, ymax = ax.get_ylim()
+y_text = ymin + 0.05 * (ymax - ymin)       # 5% above bottom
+
+ax.text(
+    breakeven,
+    y_text,
+    f"BE ≈ {breakeven:.2f}",
+    rotation=90,
+    va="bottom",
+    ha="left",
+    bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="black", alpha=0.7)
+)
+
+ax.set_xlabel("Spot Price at Expiry")
+ax.set_ylabel("Profit / Loss")
+ax.set_title("Covered Call Payoff (Single Line with Breakeven)")
+ax.legend()
+ax.grid(True)
 
 # ========== HOVER TOOLTIP ==========
 
-cursor = mplcursors.cursor([line1, line2, line3], hover=True)
-
+cursor = mplcursors.cursor(line, hover=True)
 cursor.connect(
     "add",
     lambda sel: sel.annotation.set_text(
-        f"{sel.artist.get_label()}\nSpot: {sel.target[0]:.2f}\nP&L: {sel.target[1]:.2f}"
+        f"Spot: {sel.target[0]:.2f}\nTotal P&L: {sel.target[1]:.2f}"
     )
 )
 
