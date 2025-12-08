@@ -4,10 +4,10 @@ import mplcursors
 
 # ========== USER INPUTS (CHANGE ONLY THESE) ==========
 
-fut_lot     = 1375      # 1. Future lot size
+fut_lot     = 1325      # 1. Future lot size
 fut_price   = 630   # 2. Future price
 ce_lot      = 1250      # 3. CE lot size
-ce_premium  = 8     # 4. CE Premium price
+ce_premium  = 7    # 4. CE Premium price
 ce_strike   = 620   # CE Strike price
 
 # ========== SPOT PRICE RANGE AT EXPIRY ==========
@@ -25,6 +25,11 @@ call_pnl = (ce_premium * ce_lot) - np.maximum(S_T - ce_strike, 0) * ce_lot
 # Total Covered Call P&L
 total_pnl = futures_pnl + call_pnl
 
+# ========== BREAKEVEN CALCULATION ==========
+
+# Breakeven = Futures Price - Premium Received
+breakeven = fut_price - ce_premium
+
 # ========== PLOTTING ==========
 
 plt.figure()
@@ -34,17 +39,20 @@ line1, = plt.plot(S_T, futures_pnl, label="Long Futures P&L")
 line2, = plt.plot(S_T, call_pnl, label="Short CE P&L")
 line3, = plt.plot(S_T, total_pnl, linewidth=2, label="Covered Call Total P&L")
 
+# ---- Breakeven Vertical Line ----
+plt.axvline(breakeven, linestyle="--", linewidth=2)
+plt.text(breakeven, 0, f"  Breakeven = {breakeven:.2f}", rotation=90, verticalalignment="bottom")
+
 plt.xlabel("Spot Price at Expiry")
 plt.ylabel("Profit / Loss")
-plt.title("Covered Call Payoff (Futures + Short Call)")
+plt.title("Covered Call Payoff (With Breakeven)")
 plt.legend()
 plt.grid(True)
 
-# ========== HOVER TOOLTIP (mplcursors) ==========
+# ========== HOVER TOOLTIP ==========
 
 cursor = mplcursors.cursor([line1, line2, line3], hover=True)
 
-# When you hover, show Spot & P&L
 cursor.connect(
     "add",
     lambda sel: sel.annotation.set_text(
